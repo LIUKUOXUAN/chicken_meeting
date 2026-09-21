@@ -1,52 +1,81 @@
-const crypto = require('crypto');
+// backend/utils/auth.js
 
-function base64UrlEncode(buffer) {
-  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
+// 管理员会话：HMAC-SHA256 签名 token，放在 HttpOnly Cookie 中。
+// Worker 环境使用 Web Crypto 替代 Node crypto。
 
-function base64UrlDecode(value) {
-  let s = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
-  while (s.length % 4) s += '=';
-  return Buffer.from(s, 'base64');
-}
+import { getEnv } from './env.js';
 
-const COOKIE_NAME = 'tm_admin';
-const SESSION_MAX_AGE = 8 * 60 * 60;
+export const COOKIE_NAME = 'tm_admin';
+export const SESSION_MAX_AGE = 8 * 60 * 60;
+
+let hmacKeyPromise = null;
 
 function secret() {
-  const value = process.env.ADMIN_SESSION_SECRET;
+  const value = getEnv('ADMIN_SESSION_SECRET', '');
   if (!value || value.length < 16) {
     throw new Error('ADMIN_SESSION_SECRET 未配置或过短');
   }
   return value;
 }
 
-function digestBase64Url(hmac) {
-  return base64UrlEncode(hmac.digest());
+function getHmacKey() {
+  if (!hmacKeyPromise) {
+    const raw = new TextEncoder().encode(secret());
+    hmacKeyPromise = crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  }
+  return hmacKeyPromise;
 }
 
-function sign(payload) {
-  return digestBase64Url(crypto.createHmac('sha256', secret()).update(payload));
+function base64UrlEncode(bytes) {
+  const bin = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let s = '';
+  for (let i = 0; i < bin.length; i += 1) s += String.fromCharCode(bin[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function issueSession(username) {
+function base64UrlDecode(value) {
+  let s = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** 固定时间比较，防止时序侧信道 */
+function timingSafeEqualBytes(a, b) {
+  const ua = a instanceof Uint8Array ? a : new Uint8Array(a);
+  const ub = b instanceof Uint8Array ? b : new Uint8Array(b);
+  if (ua.length !== ub.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ua.length; i += 1) diff |= ua[i] ^ ub[i];
+  return diff === 0;
+}
+
+async function sign(payload) {
+  const key = await getHmacKey();
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+  return base64UrlEncode(new Uint8Array(sig));
+}
+
+export async function issueSession(username) {
   const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE;
   const payload = `${username}.${exp}`;
-  return `${base64UrlEncode(Buffer.from(payload, 'utf8'))}.${sign(payload)}`;
+  return `${base64UrlEncode(new TextEncoder().encode(payload))}.${await sign(payload)}`;
 }
 
-function verifySession(value) {
+async function verifySession(value) {
   try {
     if (!value) return false;
     const [encoded, sig] = String(value).split('.');
     if (!encoded || !sig) return false;
-    const payload = base64UrlDecode(encoded).toString('utf8');
-    const expected = sign(payload);
-    if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+    const payload = new TextDecoder().decode(base64UrlDecode(encoded));
+    const expected = await sign(payload);
+    if (!timingSafeEqualBytes(base64UrlDecode(sig), base64UrlDecode(expected))) return false;
     const lastDot = payload.lastIndexOf('.');
     const username = payload.slice(0, lastDot);
     const exp = Number(payload.slice(lastDot + 1));
-    return Boolean(username) && Number.isFinite(exp) && exp > Math.floor(Date.now() / 1000) && username === (process.env.ADMIN_USERNAME || 'admin');
+    return Boolean(username) && Number.isFinite(exp) && exp > Math.floor(Date.now() / 1000) && username === (getEnv('ADMIN_USERNAME', 'admin'));
   } catch {
     return false;
   }
@@ -59,36 +88,28 @@ function parseCookies(header = '') {
   }));
 }
 
-function isAdmin(req) {
-  const cookies = parseCookies(req.headers.cookie || '');
+export async function isAdmin(request) {
+  const cookies = parseCookies(request.headers.get('cookie') || '');
   return verifySession(cookies[COOKIE_NAME]);
 }
 
-function requireAdmin(req, res, next) {
-  if (!isAdmin(req)) {
-    return res.status(401).json({ success: false, data: null, message: '需要管理员登录' });
-  }
-  next();
+export function loginCookieValue(token, secureFlag = false) {
+  // 本地 wrangler dev 走 http://127.0.0.1，不能带 Secure，否则浏览器拒绝存储
+  const secure = secureFlag ? '; Secure' : '';
+  return `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_MAX_AGE}${secure}`;
 }
 
-function setLoginCookie(res, username) {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(issueSession(username))}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_MAX_AGE}${secure}`);
+export function clearCookieValue() {
+  return `${COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
 }
 
-function clearLoginCookie(res) {
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
-}
-
-function validateLogin(username, password) {
-  const expectedUser = process.env.ADMIN_USERNAME || 'admin';
-  const expectedPassword = process.env.ADMIN_PASSWORD || '';
+export async function validateLogin(username, password) {
+  const expectedUser = getEnv('ADMIN_USERNAME', 'admin');
+  const expectedPassword = getEnv('ADMIN_PASSWORD', '');
   if (!expectedPassword) return false;
   const userOk = username === expectedUser;
-  const a = Buffer.from(String(password || ''));
-  const b = Buffer.from(expectedPassword);
-  const passOk = a.length === b.length && crypto.timingSafeEqual(a, b);
+  const a = new TextEncoder().encode(String(password || ''));
+  const b = new TextEncoder().encode(expectedPassword);
+  const passOk = timingSafeEqualBytes(a, b);
   return userOk && passOk;
 }
-
-module.exports = { requireAdmin, isAdmin, setLoginCookie, clearLoginCookie, validateLogin };

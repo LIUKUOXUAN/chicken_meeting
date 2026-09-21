@@ -1,4 +1,6 @@
-function publicMeeting(row) {
+// backend/utils/meetingView.js
+
+export function publicMeeting(row) {
   if (!row) return null;
   return {
     id: row.id,
@@ -21,15 +23,15 @@ function publicMeeting(row) {
   };
 }
 
-function adminMeeting(row) {
+export function adminMeeting(row) {
   return publicMeeting(row);
 }
 
-function conflictList(rows) {
+export function conflictList(rows) {
   return Array.isArray(rows) ? rows.map(publicMeeting) : [];
 }
 
-function formatDuration(seconds) {
+export function formatDuration(seconds) {
   const totalMinutes = Math.max(0, Math.round(Number(seconds || 0) / 60));
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
@@ -37,5 +39,3 @@ function formatDuration(seconds) {
   if (h) return `${h}小时`;
   return `${m}分钟`;
 }
-
-module.exports = { publicMeeting, adminMeeting, conflictList, formatDuration };
