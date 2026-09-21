@@ -159,10 +159,8 @@ function parseResponse(text, contentType, wantedId) {
 
 class TencentMeetingClient {
   constructor() {
-    this.url = env('TENCENT_MCP_URL', 'https://mcp.meeting.tencent.com/mcp/wemeet-open/v1');
-    this.skillVersion = env('TENCENT_MCP_SKILL_VERSION', '');
-    this.protocolVersion = env('TENCENT_MCP_PROTOCOL_VERSION', '2025-06-18');
-    this.timeoutMs = Number(env('TENCENT_MCP_TIMEOUT_MS', '20000')) || 20000;
+    // 注意：模块加载时 Worker env 尚未注入，配置项必须在每次请求时动态读取，
+    // 不要在这里固化 url / skillVersion / timeout 等值。
     this.sessionId = null;
     this.initialized = false;
     this.sequence = 0;
@@ -171,12 +169,13 @@ class TencentMeetingClient {
   buildHeaders() {
     const token = env('TENCENT_MEETING_TOKEN', '');
     if (!token) throw new TencentMcpError('腾讯会议 Token 未配置');
+    const skillVersion = env('TENCENT_MCP_SKILL_VERSION', '');
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json, text/event-stream',
       'X-Tencent-Meeting-Token': token
     };
-    if (this.skillVersion) headers['X-Skill-Version'] = this.skillVersion;
+    if (skillVersion) headers['X-Skill-Version'] = skillVersion;
     if (this.sessionId) headers['Mcp-Session-Id'] = this.sessionId;
     return headers;
   }
@@ -184,13 +183,15 @@ class TencentMeetingClient {
   /** Worker 版 HTTP POST：fetch + AbortController 超时，不自动跟随重定向（与旧 http.request 行为一致） */
   async httpPost(body, options) {
     const includeSession = !options || options.includeSession !== false;
+    const mcpUrl = env('TENCENT_MCP_URL', 'https://mcp.meeting.tencent.com/mcp/wemeet-open/v1');
+    const timeoutMs = Number(env('TENCENT_MCP_TIMEOUT_MS', '20000')) || 20000;
     let url;
-    try { url = new URL(this.url); } catch (e) { throw new TencentMcpError('腾讯会议 MCP 地址无效', { code: 'BAD_URL' }); }
+    try { url = new URL(mcpUrl); } catch (e) { throw new TencentMcpError('腾讯会议 MCP 地址无效', { code: 'BAD_URL' }); }
     const headers = this.buildHeaders();
     if (!includeSession) delete headers['Mcp-Session-Id'];
 
     const controller = new AbortController();
-    const timer = setTimeout(function () { controller.abort(); }, this.timeoutMs);
+    const timer = setTimeout(function () { controller.abort(); }, timeoutMs);
     try {
       const res = await fetch(url.toString(), {
         method: 'POST',
@@ -222,7 +223,8 @@ class TencentMeetingClient {
 
   async initialize() {
     if (this.initialized) return;
-    const versions = [this.protocolVersion, '2025-03-26', '2024-11-05'].filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+    const configured = env('TENCENT_MCP_PROTOCOL_VERSION', '2025-06-18');
+    const versions = [configured, '2025-03-26', '2024-11-05'].filter(function (v, i, a) { return v && a.indexOf(v) === i; });
     let lastError = null;
     for (let i = 0; i < versions.length; i += 1) {
       const version = versions[i];
@@ -230,7 +232,6 @@ class TencentMeetingClient {
         const id = 'init-' + (++this.sequence) + '-' + randomUUIDCompat();
         const response = await this.httpPost({ jsonrpc: '2.0', id: id, method: 'initialize', params: { protocolVersion: version, capabilities: {}, clientInfo: { name: 'tencent-meeting-booking', version: '2.0.0' } } }, { includeSession: false });
         if (!response || !response.result) throw new TencentMcpError('腾讯会议 MCP initialize 返回异常', { raw: sanitizeForLog(response) });
-        this.protocolVersion = response.result.protocolVersion || version;
         await this.httpPost({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
         this.initialized = true;
         return;
