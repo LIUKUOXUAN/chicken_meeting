@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>历史会议 · 腾讯会议预约中心</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar"><div class="container topbar-inner"><a class="brand" href="/">腾讯会议预约中心</a><nav><a class="active" href="/history">历史会议</a><a href="/admin">管理后台</a></nav></div></header>
+  <main class="container page-main">
+    <div class="page-heading"><div><span class="eyebrow">MEETING HISTORY</span><h1>历史会议</h1><p>查看已经创建的会议并快速复制邀请信息。</p></div><a class="secondary-btn" href="/">+ 创建会议</a></div>
+    <section class="card table-card">
+      <div class="toolbar"><select id="statusFilter"><option value="all">全部状态</option><option value="upcoming">待开始</option><option value="ongoing">进行中</option><option value="ended">已结束</option><option value="canceled">已取消</option><option value="failed">创建失败</option></select><button class="secondary-btn" id="refreshBtn">刷新</button></div>
+      <div class="table-wrap"><table><thead><tr><th>会议主题</th><th>预约人</th><th>开始时间</th><th>结束时间</th><th>会议号</th><th>状态</th><th>操作</th></tr></thead><tbody id="historyBody"></tbody></table></div>
+      <div class="empty hidden" id="emptyState">暂无会议记录</div>
+    </section>
+  </main>
+  <div class="modal hidden" id="viewModal"><div class="card modal-card"><div class="modal-header"><h2>会议详情</h2><button class="icon-btn" id="closeViewModal">×</button></div><div id="viewContent"></div></div></div>
+  <div class="toast" id="toast"></div>
+  <script src="/js/history.js"></script>
+</body>
+</html>

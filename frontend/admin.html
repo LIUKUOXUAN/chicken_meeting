@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>管理后台 · 腾讯会议预约中心</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+  <header class="topbar"><div class="container topbar-inner"><a class="brand" href="/">腾讯会议预约中心</a><nav><a href="/">预约</a><a href="/history">历史会议</a><a class="active" href="/admin">管理后台</a></nav></div></header>
+  <main class="container page-main">
+    <div class="page-heading"><div><span class="eyebrow">ADMIN CONSOLE</span><h1>管理后台</h1><p>管理会议、邀请模板与腾讯会议连接。</p></div><button class="secondary-btn" id="logoutBtn">退出登录</button></div>
+    <section class="stat-grid">
+      <div class="stat-card card"><span>今日会议</span><strong id="todayCount">—</strong></div>
+      <div class="stat-card card"><span>本周会议</span><strong id="weekCount">—</strong></div>
+      <div class="stat-card card"><span>待开始</span><strong id="upcomingCount">—</strong></div>
+      <div class="stat-card card"><span>已结束</span><strong id="endedCount">—</strong></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><div><h2>腾讯会议连接状态</h2><p>只显示连接状态，不显示完整 Token。</p></div><button class="secondary-btn" id="testTencentBtn">测试腾讯会议连接</button></div>
+      <div class="status-box" id="tencentStatus">检测中…</div>
+      <div class="small-meta" id="tokenMeta"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><div><h2>邀请模板</h2><p>支持 {{subject}}、{{organizer}}、{{start_time}}、{{end_time}}、{{duration}}、{{meeting_code}}、{{meeting_url}}、{{description}}。</p></div></div>
+      <textarea id="templateEditor" class="template-editor" rows="14"></textarea>
+      <div class="actions-right"><button class="primary-btn compact" id="saveTemplateBtn">保存模板</button></div>
+      <div class="form-error" id="templateError"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><div><h2>会议记录管理</h2><p>管理员可查看、修改、取消会议；只有已取消或失败的本地记录允许直接删除。</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>会议主题</th><th>预约人</th><th>时间</th><th>会议号</th><th>状态</th><th>操作</th></tr></thead><tbody id="adminBody"></tbody></table></div>
+      <div class="empty hidden" id="adminEmpty">暂无会议记录</div>
+    </section>
+  </main>
+  <div class="modal hidden" id="editModal"><div class="modal-card card"><div class="modal-header"><h2>修改会议</h2><button class="icon-btn" id="closeModal">×</button></div><form id="editForm"><input type="hidden" id="editId"><label class="field"><span>会议主题</span><input id="editSubject" required></label><label class="field"><span>预约人</span><input id="editOrganizer" required></label><div class="grid two"><label class="field"><span>开始时间</span><input id="editStart" type="datetime-local" required></label><label class="field"><span>结束时间</span><input id="editEnd" type="datetime-local" required></label></div><label class="field"><span>会议说明</span><textarea id="editDescription" rows="4"></textarea></label><button class="primary-btn" type="submit">保存修改</button><div class="form-error" id="editError"></div></form></div></div>
+  <div class="toast" id="toast"></div>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

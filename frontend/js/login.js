@@ -1,0 +1,2 @@
+const form=document.querySelector('#loginForm');const error=document.querySelector('#loginError');
+form.addEventListener('submit',async e=>{e.preventDefault();error.textContent='';const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:form.username.value,password:form.password.value})});const j=await r.json();if(!j.success){error.textContent=j.message||'登录失败';return}location.href='/admin';});

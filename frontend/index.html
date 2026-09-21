@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="腾讯会议多人预约中心">
+  <title>鸡遗传育种创新团队腾讯会议预约中心</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/">鸡遗传育种创新团队腾讯会议预约中心</a>
+      <nav>
+        <a href="/history">历史会议</a>
+        <a href="/admin">管理后台</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page-main">
+    <section class="hero">
+      <div>
+        <span class="eyebrow">MEETING BOOKING</span>
+        <h1>鸡遗传育种创新团队腾讯会议预约中心</h1>
+        <p>本网站仅供“鸡遗传育种创新团队”使用，请勿外传。</p>
+      </div>
+      <div class="hero-badge">北京时间</div>
+    </section>
+
+    <section class="card booking-card">
+      <div class="card-header">
+        <div>
+          <h2>预约会议</h2>
+          <p>填写以下信息后，系统会实时检查时长和时间冲突。</p>
+        </div>
+      </div>
+
+      <form id="bookingForm" autocomplete="off">
+        <div class="grid two">
+          <label class="field">
+            <span>会议主题 </span>
+            <input name="subject" maxlength="120" placeholder="例如：XX项目周例会" required>
+          </label>
+          <label class="field">
+            <span>预约人所属小组 <b>*</b></span>
+            <input name="organizer" maxlength="80" placeholder="请输入姓名" required>
+          </label>
+        </div>
+
+        <div class="time-panel">
+          <div class="section-title">会议时间</div>
+          <div class="time-mode" role="group" aria-label="时间设置模式">
+            <label><input type="radio" name="timeMode" value="end" checked> 设置结束时间</label>
+            <label><input type="radio" name="timeMode" value="duration"> 设置会议时长</label>
+          </div>
+          <div class="grid two">
+            <label class="field"><span>开始时间 <b>*</b></span><input id="startTime" type="datetime-local" required></label>
+            <label class="field" id="endField"><span>结束时间 <b>*</b></span><input id="endTime" type="datetime-local" required></label>
+            <label class="field hidden" id="durationField"><span>会议时长 <b>*</b></span>
+              <select id="durationSelect">
+                <option value="30">30分钟</option>
+                <option value="60" selected>1小时</option>
+                <option value="90">1小时30分钟</option>
+                <option value="120">2小时</option>
+                <option value="180">3小时</option>
+                <option value="custom">自定义</option>
+              </select>
+            </label>
+            <label class="field hidden" id="customDurationField"><span>自定义时长（分钟）</span><input id="customDuration" type="number" min="1" max="1440" value="60"></label>
+          </div>
+          <div class="duration-display" id="durationDisplay">会议时长：—</div>
+          <div class="form-error" id="timeError"></div>
+        </div>
+
+        <label class="field">
+          <span>会议说明</span>
+          <textarea id="description" name="description" rows="4" maxlength="2000" placeholder="可填写会议议程、注意事项等"></textarea>
+        </label>
+
+        <div class="advanced-header" id="advancedToggle">高级设置 <span>▼</span></div>
+        <div class="advanced-panel hidden" id="advancedPanel">
+          <div class="grid two">
+            <label class="field">
+              <span>会议密码（可选）</span>
+              <input id="meetingPassword" inputmode="numeric" maxlength="6" placeholder="4-6位数字">
+            </label>
+            <label class="field">
+              <span>成员入会限制</span>
+              <select id="joinType">
+                <option value="">默认</option>
+                <option value="1">所有成员可入会</option>
+                <option value="2">仅受邀成员可入会</option>
+                <option value="3">仅企业内部成员可入会</option>
+              </select>
+            </label>
+          </div>
+          <label class="check-row"><input id="waitingRoom" type="checkbox"><span>开启等候室</span></label>
+          <div class="note">当前版本只显示腾讯会议 Remote MCP 文档已能确认的会议参数；未确认支持的“自动录制、自动静音、自动关摄像头、提前入会”等选项不会伪装成可用功能。</div>
+        </div>
+
+        <button class="primary-btn" id="createBtn" type="submit">创建腾讯会议</button>
+        <div class="form-error" id="submitError"></div>
+      </form>
+    </section>
+
+    <section id="resultSection" class="hidden"></section>
+  </main>
+
+  <footer class="footer">腾讯会议预约中心 · Token 仅保存在后端</footer>
+  <script src="/js/app.js"></script>
+</body>
+</html>
